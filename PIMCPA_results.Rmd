@@ -1,0 +1,90 @@
+---
+title: "MBON PIMCPA"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: lumen
+    social: menu
+    source: embed
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(leaflet)
+library(ggplot2)
+library(plotly)
+library(spocc)
+library(rinat)
+library(mapr)
+
+
+library(RColorBrewer)
+palette(brewer.pal(8, "Set2"))
+
+
+```
+
+```{r dataread, message=FALSE, warning=FALSE, include=FALSE}
+#READ both files metadata and percent covers 
+setwd(paste0(getwd(),"/DATA"))#set new WD to folder DATA
+PIMCPA.cover <- read.csv("percent_covers.csv")
+PIMCPA.metadata <- read.csv("metadata.csv")
+setwd("..")# original WD
+
+colnames(PIMCPA.cover)[2] <-"Name" 
+#Merge PIMCPA.metadata and PIMCPA.cover
+PIMCPA<- merge(PIMCPA.metadata,PIMCPA.cover, by = "Name", all.x = TRUE) 
+
+#Create long type dataframe 
+library(reshape)
+PIMCPA_long = melt(PIMCPA, id.vars = 1:21, measure.vars = 22:ncol(PIMCPA), variable_name = "CATAMI", value_name ="cover", na.rm = T)
+#rename columns because the ontop command is not working 
+colnames(PIMCPA_long)[23] <- "cover"
+
+#Calculate mean, SD, SE for cover data by factors 
+library(doBy)
+Coverdata <- summaryBy(cover ~ CATAMI + strata,data=PIMCPA_long, FUN = function(x) { c(mean = mean(x),SD=sd(x),SE = sqrt(var(x)/length(x)))})
+
+#add year from date info
+PIMCPA$year <- lubridate::year(PIMCPA$Date)
+photo_bydate = as.data.frame(table(PIMCPA$year,PIMCPA$site,PIMCPA$strata))
+colnames(photo_bydate)=c("Fecha","Sitio","Estrato","n fotocuadrantes")  
+
+```
+
+
+Column1 {.tabset .tabset-fade}
+-------
+
+### Mapa Fotoquadrantes
+```{r map, message=FALSE, warning=FALSE}
+library(leaflet)
+leaflet() %>% 
+addMiniMap(toggleDisplay = T) %>% 
+addProviderTiles(providers$Esri.WorldImagery) %>%
+addCircleMarkers(data = PIMCPA, ~Longitude, ~Latitude,weight = 0.5,col = 'green', fillColor = 'green',radius = 4, fillOpacity = 0.5, stroke = T, label =PIMCPA$Name,group ='Fotocuadrantes')%>%
+addLayersControl(overlayGroups = c("Fotocuadrantes"),options = layersControlOptions(collapsed = FALSE),position = 'topright')
+```
+
+### Phylum 
+```{r donut}
+library(plotly)
+##numbers of observations by phylum 
+p = Coverdata %>% plot_ly(labels = ~CATAMI, values=~cover.mean) %>% 
+  add_pie(hole=0.6) %>% 
+  layout(title = ~paste0("Porcentaje de cobertura promedio por categoria ")) 
+
+plotly::config(p,displayModeBar = F) 
+```
+
+
+
+Column3{data-width=200}
+-------
+
+### Fotoquadrantes por fecha y sitio
+```{r}
+knitr::kable(as.data.frame(table(PIMCPA$year,PIMCPA$site,PIMCPA$strata)),col.names = c("Año","Sitio","Estrato","n"))
+```
+
+
+
