@@ -13,8 +13,14 @@ library(leaflet)
 library(ggplot2)
 library(plotly)
 library(spocc)
-library(rinat)
 library(mapr)
+library(readr)
+library(reshape2)
+library(xts)
+library(dygraphs)
+library(plotly)
+library(lubridate)
+library(dplyr)
 
 
 library(RColorBrewer)
@@ -49,6 +55,17 @@ PIMCPA$year <- lubridate::year(PIMCPA$Date)
 photo_bydate = as.data.frame(table(PIMCPA$year,PIMCPA$site,PIMCPA$strata))
 colnames(photo_bydate)=c("Fecha","Sitio","Estrato","n fotocuadrantes")  
 
+#SST
+#getSST.r was used to get data 
+## get sampling event dates
+samplingDates = unique(PIMCPA$Date)
+
+## read SST values
+library(readr)
+setwd(paste0(getwd(),"/DATA"))#set new WD to folder DATA
+SST = read_csv("PIMCPA_SST.csv")
+SST.clim = read_csv("PIMCPA_Climatology.csv")
+setwd("..")# original WD
 ```
 
 
@@ -65,18 +82,68 @@ addCircleMarkers(data = PIMCPA, ~Longitude, ~Latitude,weight = 0.5,col = 'green'
 addLayersControl(overlayGroups = c("Fotocuadrantes"),options = layersControlOptions(collapsed = FALSE),position = 'topright')
 ```
 
-### Phylum 
-```{r donut}
-library(plotly)
-##numbers of observations by phylum 
-p = Coverdata %>% plot_ly(labels = ~CATAMI, values=~cover.mean) %>% 
-  add_pie(hole=0.6) %>% 
-  layout(title = ~paste0("Porcentaje de cobertura promedio por categoria ")) 
 
-plotly::config(p,displayModeBar = F) 
+### Temperatura superficial del mar (°C) 
+```{r SST}
+## plot SST from stored values
+# [Datos extraidos de ERDDAP](https://coastwatch.pfeg.noaa.gov/erddap/info/jplMURSST41/index.html)
+
+SST.xts = as.xts(SST$SST, SST$time)
+dygraph(SST.xts, 
+        ylab = "Temperatura del mar superficial °C") %>% 
+  dySeries("V1", label ="SST °C", color = "steelblue") %>%
+  dyHighlight(highlightCircleSize = 5, 
+              highlightSeriesBackgroundAlpha = 0.2,
+              hideOnMouseOut = FALSE) %>% 
+  dyOptions(fillGraph = FALSE, fillAlpha = 0.4) %>% 
+  dyEvent(samplingDates,  color="red") %>% 
+  dyRangeSelector(dateWindow = c(max(SST$time) - years(5), max(SST$time)))
+
+```
+
+### Climatología
+```{r}
+## subset SST for last year
+SST.lastyear = SST %>% filter(year(time)==max(year(time)))
+
+## make the plot
+pp = ggplot(SST.clim, aes(yDay, SST.mean))
+pp = pp + geom_line() + geom_smooth(span=0.25, se=FALSE, colour="steelblue") +  
+  geom_ribbon(aes(ymin=SST.q25, ymax=SST.q75), fill="steelblue", alpha=0.5) +
+  geom_line(data=SST.lastyear, aes(yday(time), SST), colour="red") + 
+  ylab("Temperatura del mar superficial °C") + xlab("Día del año") + 
+  theme_bw(base_size = 9) 
+ggplotly(pp) %>% plotly::config(displayModeBar = F) 
+
 ```
 
 
+### Cobertura de organismos vivos x estrato
+```{r taxacover}
+taxacover = PIMCPA_long %>% filter(CATAMI != "Substrate..Consolidated..hard.") %>% 
+  group_by(site, strata, Image.ID) %>% 
+  summarise(sumcover = sum(cover, na.rm=T))
+
+pp = ggplot(taxacover, aes(x=factor(strata,level=c('LOWTIDE', 'MIDTIDE', 'HIGHTIDE')), sumcover, fill=strata))
+pp = pp + geom_boxplot() + ylab("% Cover of all taxa per quadrat") + xlab("")+
+  facet_grid(~site) + 
+  theme_bw(base_size = 10) + theme(legend.position = "none")
+ggplotly(pp)
+```
+
+### Species frequency
+```{r}
+taxafreq = PIMCPA_long %>% filter(cover>0)%>%
+  group_by(site, strata, CATAMI) %>%  
+  summarise(sppfreq = n()) %>% arrange(sppfreq) %>% mutate(sppacum = cumsum(sppfreq))
+
+pp = ggplot(taxafreq, aes(CATAMI, sppfreq, fill=strata))
+pp = pp + geom_bar(stat="identity") + coord_flip() + facet_grid(~site) + 
+  theme_bw(base_size = 10) + xlab("") + ylab("number of quadrats present")
+
+ggplotly(pp)
+
+```
 
 Column3{data-width=200}
 -------
