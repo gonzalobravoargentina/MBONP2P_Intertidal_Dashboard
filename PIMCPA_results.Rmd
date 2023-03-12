@@ -118,20 +118,164 @@ ggplotly(pp) %>% plotly::config(displayModeBar = F)
 ```
 
 
-### Cobertura de organismos vivos x estrato
+### Cobertura de organismos vivos por estrato
 ```{r taxacover}
 taxacover = PIMCPA_long %>% filter(CATAMI != "Substrate..Consolidated..hard.") %>% 
   group_by(site, strata, Image.ID) %>% 
   summarise(sumcover = sum(cover, na.rm=T))
 
 pp = ggplot(taxacover, aes(x=factor(strata,level=c('LOWTIDE', 'MIDTIDE', 'HIGHTIDE')), sumcover, fill=strata))
-pp = pp + geom_boxplot() + ylab("% Cover of all taxa per quadrat") + xlab("")+
+pp = pp + geom_boxplot() + ylab("% Cobertura de todas las especies por cuadrante") + xlab("")+
   facet_grid(~site) + 
   theme_bw(base_size = 10) + theme(legend.position = "none")
 ggplotly(pp)
 ```
 
-### Species frequency
+### Coberturas de Molluscos
+
+<img src="images/DSCN8673.JPG" width="400px"/>
+```{r}
+# this creates a gauge with % cover values color coded by threshold levels
+library(echarts4r)
+
+value <- Coverdata[Coverdata$CATAMI == "Molluscs..Bivalves", ]
+
+Molluscs <- e_charts() %>% 
+  e_gauge(round(value$cover.mean[1], 0), 
+          "ALTO", 
+          center = c("20%", "20%"), 
+          radius = "30%",
+          color = "black",
+          min=0, 
+          max=100,
+          splitNumber = 10,
+          axisLine = list(
+            lineStyle = list(
+              color=list(
+                c(0.20, "red"),
+                c(.50, "yellow"),
+                c(1, "green")
+              )
+            ))) %>% 
+    e_gauge(round(value$cover.mean[3], 0), 
+          "MEDIO", 
+          center = c("50%", "20%"), 
+          radius = "30%",
+          color = "black",
+          min=0, 
+          max=100,
+          splitNumber = 10,
+          axisLine = list(
+            lineStyle = list(
+              color=list(
+                c(0.20, "red"),
+                c(.50, "yellow"),
+                c(1, "green")
+              )
+            ))) %>% 
+      e_gauge(round(value$cover.mean[2], 0), 
+          "BAJO", 
+          center = c("80%", "20%"), 
+          radius = "30%",
+          color = "black",
+          min=0, 
+          max=100,
+          splitNumber = 10,
+          axisLine = list(
+            lineStyle = list(
+              color=list(
+                c(0.20, "red"),
+                c(.50, "yellow"),
+                c(1, "green")
+              )
+            ))) %>% 
+  e_title("Moluscos (%)")
+
+Molluscs
+
+# # High tide
+# gauge(value$cover.mean[1], min = 0, max = 100, symbol = '%', 
+#       gaugeSectors(success = c(60, 100), warning = c(40, 59), danger = c(0, 39)),
+#       label = "Estrato alto"
+#       )
+# 
+# # Mid tide
+# gauge(value$cover.mean[3], min = 0, max = 100, symbol = '%', 
+#       gaugeSectors(success = c(60, 100), warning = c(40, 59), danger = c(0, 39)),
+#       label = "Estrato medio"
+#       )
+# 
+# # Low tide
+# gauge(value$cover.mean[2], min = 0, max = 100, symbol = '%', 
+#       gaugeSectors(success = c(60, 100), warning = c(40, 59), danger = c(0, 39)),
+#       label = "Estrato bajo"
+#       )
+```
+
+### Coberturas de Cirripedios
+
+<img src="images/casa_de_gas3.JPEG" width="400px"/>
+```{r}
+# this creates a gauge with % cover values color coded by threshold levels
+library(echarts4r)
+
+value <- Coverdata[Coverdata$CATAMI == "Crustacea..Barnacles", ]
+
+Barnacles <- e_charts() %>% 
+  e_gauge(round(value$cover.mean[1], 0), 
+          "ALTO", 
+          center = c("20%", "20%"), 
+          radius = "30%",
+          color = "black",
+          min=0, 
+          max=100,
+          splitNumber = 10,
+          axisLine = list(
+            lineStyle = list(
+              color=list(
+                c(0.10, "red"),
+                c(.30, "yellow"),
+                c(1, "green")
+              )
+            ))) %>% 
+    e_gauge(round(value$cover.mean[3], 0), 
+          "MEDIO", 
+          center = c("50%", "20%"), 
+          radius = "30%",
+          color = "black",
+          min=0, 
+          max=100,
+          splitNumber = 10,
+          axisLine = list(
+            lineStyle = list(
+              color=list(
+                c(0.10, "red"),
+                c(.30, "yellow"),
+                c(1, "green")
+              )
+            ))) %>% 
+      e_gauge(round(value$cover.mean[2], 0), 
+          "BAJO", 
+          center = c("80%", "20%"), 
+          radius = "30%",
+          color = "black",
+          min=0, 
+          max=100,
+          splitNumber = 10,
+          axisLine = list(
+            lineStyle = list(
+              color=list(
+                c(0.10, "red"),
+                c(.30, "yellow"),
+                c(1, "green")
+              )
+            ))) %>% 
+  e_title("Cirripedios (%)")
+
+Barnacles
+```
+
+### Frecuencia de especies
 ```{r}
 taxafreq = PIMCPA_long %>% filter(cover>0)%>%
   group_by(site, strata, CATAMI) %>%  
@@ -139,7 +283,7 @@ taxafreq = PIMCPA_long %>% filter(cover>0)%>%
 
 pp = ggplot(taxafreq, aes(CATAMI, sppfreq, fill=strata))
 pp = pp + geom_bar(stat="identity") + coord_flip() + facet_grid(~site) + 
-  theme_bw(base_size = 10) + xlab("") + ylab("number of quadrats present")
+  theme_bw(base_size = 10) + xlab("") + ylab("Número de foto-cuadrantes")
 
 ggplotly(pp)
 
