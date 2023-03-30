@@ -140,7 +140,7 @@ ggplotly(pp)
 
 ### Coberturas de Molluscos
 
-<img src="images/AMP20053.JPG" width="400px"/>
+<!-- <img src="images/AMP20053.JPG" width="400px"/> -->
 ```{r}
 # this creates a gauge with % cover values color coded by threshold levels
 library(echarts4r)
@@ -225,7 +225,7 @@ Molluscs
 
 ### Coberturas de Macro-Algas
 
-<img src="images/ulva.JPG" width="400px"/>
+<!-- <img src="images/ulva.JPG" width="400px"/> -->
 ```{r}
 # this creates a gauge with % cover values color coded by threshold levels
 library(echarts4r)
