@@ -13,7 +13,6 @@ library(leaflet)
 library(ggplot2)
 library(plotly)
 library(spocc)
-library(mapr)
 library(readr)
 library(reshape2)
 library(xts)
@@ -32,8 +31,10 @@ palette(brewer.pal(8, "Set2"))
 ```{r dataread, message=FALSE, warning=FALSE, include=FALSE}
 #READ both files metadata and percent covers 
 setwd(paste0(getwd(),"/DATA"))#set new WD to folder DATA
-PIMCPA.cover <- read.csv("percent_covers.csv")
-PIMCPA.metadata <- read.csv("metadata.csv")
+# PIMCPA.cover <- read.csv("percent_covers.csv")
+PIMCPA.cover <- read.csv("percent_covers_PIMCPA2023.csv")
+# PIMCPA.metadata <- read.csv("metadata.csv")
+PIMCPA.metadata <- read.csv("metadata_PIMCPA2023.csv")
 setwd("..")# original WD
 
 colnames(PIMCPA.cover)[2] <-"Name" 
@@ -120,7 +121,13 @@ ggplotly(pp) %>% plotly::config(displayModeBar = F)
 
 ### Cobertura de organismos vivos por estrato
 ```{r taxacover}
-taxacover = PIMCPA_long %>% filter(CATAMI != "Substrate..Consolidated..hard.") %>% 
+# Use this when using percent_covers.csv and full names from CoralNet
+# taxacover = PIMCPA_long %>% filter(CATAMI != "Substrate..Consolidated..hard.") %>% 
+#   group_by(site, strata, Image.ID) %>% 
+#   summarise(sumcover = sum(cover, na.rm=T))
+
+# Use this when using percent_covers_PIMCPA2023.cvs and short names from CoralNet
+taxacover = PIMCPA_long %>% filter(CATAMI != "SC") %>% 
   group_by(site, strata, Image.ID) %>% 
   summarise(sumcover = sum(cover, na.rm=T))
 
@@ -133,12 +140,16 @@ ggplotly(pp)
 
 ### Coberturas de Molluscos
 
-<img src="images/DSCN8673.JPG" width="400px"/>
+<img src="images/AMP20053.JPG" width="400px"/>
 ```{r}
 # this creates a gauge with % cover values color coded by threshold levels
 library(echarts4r)
 
-value <- Coverdata[Coverdata$CATAMI == "Molluscs..Bivalves", ]
+# Use this when using percent_covers.csv and full names from CoralNet
+# value <- Coverdata[Coverdata$CATAMI == "Molluscs..Bivalves", ]
+
+# Use this when using percent_covers_PIMCPA2023.cvs and short names from CoralNet
+value <- Coverdata[Coverdata$CATAMI == "MOB", ]
 
 Molluscs <- e_charts() %>% 
   e_gauge(round(value$cover.mean[1], 0), 
@@ -212,16 +223,21 @@ Molluscs
 #       )
 ```
 
-### Coberturas de Cirripedios
+### Coberturas de Macro-Algas
 
-<img src="images/casa_de_gas3.JPEG" width="400px"/>
+<img src="images/ulva.JPG" width="400px"/>
 ```{r}
 # this creates a gauge with % cover values color coded by threshold levels
 library(echarts4r)
 
+# Use this when using percent_covers.csv and full names from CoralNet
 value <- Coverdata[Coverdata$CATAMI == "Crustacea..Barnacles", ]
 
-Barnacles <- e_charts() %>% 
+
+# Use this when using percent_covers_PIMCPA2023.cvs and short names from CoralNet
+value <- Coverdata[Coverdata$CATAMI == "MAS", ]
+
+MAS <- e_charts() %>% 
   e_gauge(round(value$cover.mean[1], 0), 
           "ALTO", 
           center = c("20%", "20%"), 
@@ -270,9 +286,9 @@ Barnacles <- e_charts() %>%
                 c(1, "green")
               )
             ))) %>% 
-  e_title("Cirripedios (%)")
+  e_title("Macro-algas (%)")
 
-Barnacles
+MAS
 ```
 
 ### Frecuencia de especies
@@ -288,6 +304,20 @@ pp = pp + geom_bar(stat="identity") + coord_flip() + facet_grid(~site) +
 ggplotly(pp)
 
 ```
+
+### Distribución de grupos
+```{r}
+# creating a pie chart in order 
+# Basic piechart
+
+sel_data <- filter(Coverdata, strata == "LOWTIDE")
+
+ggplot(sel_data, aes(x="", y=cover.mean, fill=CATAMI)) +
+  geom_bar(stat="identity", width=1) +
+  coord_polar("y", start=0) +
+  ggtitle("Estrato bajo")
+```
+
 
 Column3{data-width=200}
 -------
