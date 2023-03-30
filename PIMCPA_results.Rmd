@@ -233,7 +233,6 @@ library(echarts4r)
 # Use this when using percent_covers.csv and full names from CoralNet
 value <- Coverdata[Coverdata$CATAMI == "Crustacea..Barnacles", ]
 
-
 # Use this when using percent_covers_PIMCPA2023.cvs and short names from CoralNet
 value <- Coverdata[Coverdata$CATAMI == "MAS", ]
 
