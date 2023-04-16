@@ -64,6 +64,7 @@ SST.clim = SST %>% filter(time>=ymd(SSTclimStartDate), time<=SSTclimEndDate) %>%
 
 
 ## save SST
+setwd(paste0(getwd(),"/DATA"))#set new WD to folder DATA
 write_csv(SST, path = paste0(NoSpaces(SSTSiteName), "_SST.csv"))
 write_csv(SST.clim, path = paste0(NoSpaces(SSTSiteName), "_Climatology.csv"))
 
