@@ -18,9 +18,9 @@ NoSpaces = function(x){
 }
 
 ## set site coordinates and time for SST extraction
-SSTSiteName = "PIMCPA"   ## for the resulting file name
-SSTcoords.lon = -65.777863
-SSTcoords.lat = -45.077625
+SSTSiteName = "ISLA PINGUINO"   ## for the resulting file name
+SSTcoords.lon = -65.913767
+SSTcoords.lat = -48.103372
 
 SSTstartDate = "2002-06-01"
 
