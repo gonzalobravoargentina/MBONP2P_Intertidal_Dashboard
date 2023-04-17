@@ -1,5 +1,5 @@
 ---
-title: "MBON - CABO DOS BAHIAS"
+title: "CABO DOS BAHIAS"
 output: 
   flexdashboard::flex_dashboard:
     theme: lumen
@@ -29,7 +29,7 @@ palette(brewer.pal(8, "Set2"))
 ```
 
 ```{r dataread, message=FALSE, warning=FALSE, include=FALSE}
-#READ both files metadata and percent covers 
+#READ both files metadata and percent cover 
 setwd(paste0(getwd(),"/DATA"))#set new WD to folder DATA
 
 AMP.cover <- read.csv("CABODOSBAHIAS_04-2023_percent_covers.csv")
@@ -41,6 +41,11 @@ colnames(AMP.cover)[2] <-"Name"
 #Merge AMP.metadata and AMP.cover
 AMP<- merge(AMP.metadata,AMP.cover, by = "Name", all.x = TRUE) 
 
+
+#all seaweed
+AMP$algae <- as.numeric(paste(AMP$MAA +AMP$MAEC + AMP$MAEF+ AMP$MAEN+ AMP$MAF+ AMP$MAG+ AMP$MALA+ AMP$MALCB+ AMP$MAS))
+
+
 #Create long type dataframe 
 library(reshape)
 AMP_long = melt(AMP, id.vars = 1:21, measure.vars = 22:ncol(AMP), variable_name = "CATAMI", value_name ="cover", na.rm = T)
@@ -50,6 +55,8 @@ colnames(AMP_long)[23] <- "cover"
 #Calculate mean, SD, SE for cover data by factors 
 library(doBy)
 Coverdata <- summaryBy(cover ~ CATAMI + strata,data=AMP_long, FUN = function(x) { c(mean = mean(x),SD=sd(x),SE = sqrt(var(x)/length(x)))})
+
+
 
 #add year from date info
 AMP$year <- lubridate::year(AMP$Date)
@@ -127,7 +134,7 @@ ggplotly(pp) %>% plotly::config(displayModeBar = F)
 #   summarise(sumcover = sum(cover, na.rm=T))
 
 # Use this when using percent_covers_AMP2023.cvs and short names from CoralNet
-taxacover = AMP_long %>% filter(CATAMI != "SC") %>% 
+taxacover = AMP_long %>% filter(CATAMI != "SC", CATAMI != "algae") %>% 
   group_by(site, strata, Image.ID) %>% 
   summarise(sumcover = sum(cover, na.rm=T))
 
@@ -140,8 +147,8 @@ ggplotly(pp)
 
 ### Coberturas de Molluscos
 
-<!-- <img src="images/AMP20053.JPG" width="400px"/> -->
 ```{r}
+#<!-- <img src="images/AMP20053.JPG" width="400px"/> -->
 # this creates a gauge with % cover values color coded by threshold levels
 library(echarts4r)
 
@@ -230,58 +237,56 @@ Molluscs
 # this creates a gauge with % cover values color coded by threshold levels
 library(echarts4r)
 
-# Use this when using percent_covers.csv and full names from CoralNet
-value <- Coverdata[Coverdata$CATAMI == "Crustacea..Barnacles", ]
+# Use  short names from CoralNet
+value <- Coverdata[Coverdata$CATAMI == "algae", ]
 
-# Use this when using percent_covers_AMP2023.cvs and short names from CoralNet
-value <- Coverdata[Coverdata$CATAMI == "MAS", ]
 
 MAS <- e_charts() %>% 
   e_gauge(round(value$cover.mean[1], 0), 
           "ALTO", 
           center = c("20%", "20%"), 
-          radius = "30%",
+          radius = "35%",
           color = "black",
           min=0, 
           max=100,
-          splitNumber = 10,
+          splitNumber = 5,
           axisLine = list(
             lineStyle = list(
               color=list(
-                c(0.10, "red"),
-                c(.30, "yellow"),
+                c(1, "green"),
+                c(1, "green"),
                 c(1, "green")
               )
             ))) %>% 
     e_gauge(round(value$cover.mean[3], 0), 
           "MEDIO", 
           center = c("50%", "20%"), 
-          radius = "30%",
+          radius = "35%",
           color = "black",
           min=0, 
           max=100,
-          splitNumber = 10,
+          splitNumber = 5,
           axisLine = list(
             lineStyle = list(
               color=list(
-                c(0.10, "red"),
-                c(.30, "yellow"),
+                c(1, "green"),
+                c(1, "green"),
                 c(1, "green")
               )
             ))) %>% 
       e_gauge(round(value$cover.mean[2], 0), 
           "BAJO", 
           center = c("80%", "20%"), 
-          radius = "30%",
+          radius = "35%",
           color = "black",
           min=0, 
           max=100,
-          splitNumber = 10,
+          splitNumber = 5,
           axisLine = list(
             lineStyle = list(
               color=list(
                 c(0.10, "red"),
-                c(.30, "yellow"),
+                c(.20, "yellow"),
                 c(1, "green")
               )
             ))) %>% 
@@ -304,17 +309,23 @@ ggplotly(pp)
 
 ```
 
-### Distribución de grupos
+### Categorias más abundantes por estrato
 ```{r}
-# creating a pie chart in order 
-# Basic piechart
+# creating a pie chart for each strata with all the CATAMI categories present
+sel_data.L <- filter(Coverdata, strata == "LOWTIDE",cover.mean > 0,CATAMI != "algae")
+sel_data.M <- filter(Coverdata, strata == "MIDTIDE",cover.mean > 0,CATAMI != "algae")
+sel_data.H <- filter(Coverdata, strata == "HIGHTIDE",cover.mean > 0,CATAMI != "algae")
 
-sel_data <- filter(Coverdata, strata == "LOWTIDE")
 
-ggplot(sel_data, aes(x="", y=cover.mean, fill=CATAMI)) +
-  geom_bar(stat="identity", width=1) +
-  coord_polar("y", start=0) +
-  ggtitle("Estrato bajo")
+plot_ly(labels=~CATAMI, values=~cover.mean, legendgroup=~CATAMI,textinfo = 'label+percent') %>%
+  add_pie(data =sel_data.L, name = "Bajo",title = 'Estrato Bajo', domain = list(row = 0, column = 0))%>%
+  add_pie(data =sel_data.M, name = "Medio",title = 'Estrato Medio', domain = list(row = 0, column = 1))%>%
+  add_pie(data =sel_data.H, name = "Alto",title = 'Estrato Alto' ,domain = list(row = 0, column = 2))%>%
+  layout(title = "Categorias CATAMI por estrato", showlegend = T,
+         grid=list(rows=1, columns=3),
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
 ```
 
 
@@ -325,6 +336,4 @@ Column3{data-width=200}
 ```{r}
 knitr::kable(as.data.frame(table(AMP$year,AMP$site,AMP$strata)),col.names = c("Año","Sitio","Estrato","n"))
 ```
-
-
 
