@@ -32,9 +32,9 @@ palette(brewer.pal(8, "Set2"))
 #READ both files metadata and percent covers 
 setwd(paste0(getwd(),"/DATA"))#set new WD to folder DATA
 # PIMCPA.cover <- read.csv("percent_covers.csv")
-PIMCPA.cover <- read.csv("percent_covers_PIMCPA2023.csv")
+PIMCPA.cover <- read.csv("PIMCPA2023_percent_covers.csv")
 # PIMCPA.metadata <- read.csv("metadata.csv")
-PIMCPA.metadata <- read.csv("metadata_PIMCPA2023.csv")
+PIMCPA.metadata <- read.csv("PIMCPA2023_metadata.csv")
 setwd("..")# original WD
 
 colnames(PIMCPA.cover)[2] <-"Name" 
@@ -306,15 +306,20 @@ ggplotly(pp)
 
 ### Distribución de grupos
 ```{r}
-# creating a pie chart in order 
-# Basic piechart
+# creating a pie chart for each strata with all the CATAMI categories present
+sel_data.L <- filter(Coverdata, strata == "LOWTIDE",cover.mean > 0,CATAMI != "algae")
+sel_data.M <- filter(Coverdata, strata == "MIDTIDE",cover.mean > 0,CATAMI != "algae")
+sel_data.H <- filter(Coverdata, strata == "HIGHTIDE",cover.mean > 0,CATAMI != "algae")
 
-sel_data <- filter(Coverdata, strata == "LOWTIDE")
 
-ggplot(sel_data, aes(x="", y=cover.mean, fill=CATAMI)) +
-  geom_bar(stat="identity", width=1) +
-  coord_polar("y", start=0) +
-  ggtitle("Estrato bajo")
+plot_ly(labels=~CATAMI, values=~cover.mean, legendgroup=~CATAMI,textinfo = 'label+percent') %>%
+  add_pie(data =sel_data.L, name = "Bajo",title = 'Estrato Bajo', domain = list(row = 0, column = 0))%>%
+  add_pie(data =sel_data.M, name = "Medio",title = 'Estrato Medio', domain = list(row = 0, column = 1))%>%
+  add_pie(data =sel_data.H, name = "Alto",title = 'Estrato Alto' ,domain = list(row = 0, column = 2))%>%
+  layout(title = "Categorias CATAMI por estrato", showlegend = T,
+         grid=list(rows=1, columns=3),
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
 ```
 
 
