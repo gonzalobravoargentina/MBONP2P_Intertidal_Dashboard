@@ -1,10 +1,11 @@
 ---
-title: "AMPs"
+title: "AMPs ARGENTINA"
 output: 
   flexdashboard::flex_dashboard:
     theme: lumen
     social: menu
     source: embed
+    logo: logo.png
 ---
 
 ```{r setup, include=FALSE}
@@ -36,9 +37,8 @@ palette(brewer.pal(8, "Set2"))
 #READ both files metadata and percent cover 
 setwd(paste0(getwd(),"/DATA"))#set new WD to folder DATA
 
-AMP.cover <- read.csv("ISLAPINGUINO_04-2023_percent_covers.csv")
-
-AMP.metadata <- read.csv("ISLAPINGUINO_04-2023_metadata.csv")
+AMP.cover <- read.csv("AMPs_percent_covers.csv")
+AMP.metadata <- read.csv("AMPs_metadata.csv")
 setwd("..")# original WD
 
 colnames(AMP.cover)[2] <-"Name" 
@@ -61,11 +61,10 @@ library(doBy)
 Coverdata <- summaryBy(cover ~ CATAMI + strata,data=AMP_long, FUN = function(x) { c(mean = mean(x),SD=sd(x),SE = sqrt(var(x)/length(x)))})
 
 
-
 #add year from date info
 AMP$year <- lubridate::year(AMP$Date)
-photo_bydate = as.data.frame(table(AMP$year,AMP$site,AMP$strata))
-colnames(photo_bydate)=c("Fecha","Sitio","Estrato","n fotocuadrantes")  
+photo_bydate = as.data.frame(table(AMP$year,AMP$site,AMP$locality,AMP$strata))
+colnames(photo_bydate)=c("Fecha","Sitio","Localidad","Estrato","n fotocuadrantes")  
 
 #SST
 #getSST.r was used to get data 
@@ -89,92 +88,45 @@ Column1 {.tabset .tabset-fade}
 ### Mapa Fotoquadrantes
 ```{r map, message=FALSE, warning=FALSE}
 library(leaflet)
-library(leafpop)
+
 
 # Crear el mapa
-map <- leaflet(AMP) %>% addProviderTiles(providers$Esri.WorldImagery) %>%
-  # Agregar los iconos de las localidades
+map <- leaflet(AMP)%>%# add different provider tiles
+  addProviderTiles(
+    "Esri.WorldImagery",
+    # give the layer a name
+    group = "Satelite"
+  ) %>%
+  addProviderTiles(
+    "OpenStreetMap",
+    group = "Mapa para zoom"
+  ) %>%
+  # add a layers control
+  addLayersControl(
+    baseGroups = c(
+      "Satelite", "Mapa para zoom"),
+    # position it on the topleft
+    position = "topleft"
+  ) %>%# Agregar los iconos de las localidades
   addCircleMarkers(
     data = AMP, 
     ~Longitude, 
     ~Latitude,
     weight = 0.5,
-    col = 'green',
-    fillColor = 'green',
+    col = 'red',
+    fillColor = 'red',
     radius = 4,
     fillOpacity = 0.5,
     stroke = T,
-    popup = ~Comments
-  )
+    popup = ~Comments,
+    clusterOptions = markerClusterOptions())
 
-# Obtener una lista única de localidades
-unique_sites <- unique(AMP$Comments)
 
-makeMyIcon <- function(label) {
-  div <- paste0("<div class='my-custom-icon'>", label, "</div>")
-  htmltools::HTML(div)
-}
-
-# Iterar sobre la lista única de localidades y agregar un botón de zoom para cada una
-for (Comments in unique_sites) {
-  # Obtener la primera fila de la localidad actual
-  row <- AMP[AMP$Comments == Comments, ][1, ]
-  
-  # Crear el botón de zoom personalizado
-  myIcon <- makeMyIcon(Comments)
-  
-  # Agregar el botón de zoom personalizado
-  map <- map %>% 
-    addEasyButton(
-      easyButton(
-        icon = myIcon,
-        title = paste("Zoom a", Comments),
-        position = "topright",
-        onClick = JS(paste("function(btn, map) { map.flyTo([", 
-                          as.numeric(row$Latitude), ", ", 
-                          as.numeric(row$Longitude), "], 12); }"))
-      )
-    )
-}
 
 
 map  # Mostrar el mapa
 
 
-
-```
-
-### Temperatura superficial del mar (°C) 
-```{r SST}
-## plot SST from stored values
-# [Datos extraidos de ERDDAP](https://coastwatch.pfeg.noaa.gov/erddap/info/jplMURSST41/index.html)
-
-SST.xts = as.xts(SST$SST, SST$time)
-dygraph(SST.xts, 
-        ylab = "Temperatura del mar superficial °C") %>% 
-  dySeries("V1", label ="SST °C", color = "steelblue") %>%
-  dyHighlight(highlightCircleSize = 5, 
-              highlightSeriesBackgroundAlpha = 0.2,
-              hideOnMouseOut = FALSE) %>% 
-  dyOptions(fillGraph = FALSE, fillAlpha = 0.4) %>% 
-  dyEvent(samplingDates,  color="red") %>% 
-  dyRangeSelector(dateWindow = c(max(SST$time) - years(5), max(SST$time)))
-
-```
-
-### Climatología
-```{r}
-## subset SST for last year
-SST.lastyear = SST %>% filter(year(time)==max(year(time)))
-
-## make the plot
-pp = ggplot(SST.clim, aes(yDay, SST.mean))
-pp = pp + geom_line() + geom_smooth(span=0.25, se=FALSE, colour="steelblue") +  
-  geom_ribbon(aes(ymin=SST.q25, ymax=SST.q75), fill="steelblue", alpha=0.5) +
-  geom_line(data=SST.lastyear, aes(yday(time), SST), colour="red") + 
-  ylab("Temperatura del mar superficial °C") + xlab("Día del año") + 
-  theme_bw(base_size = 9) 
-ggplotly(pp) %>% plotly::config(displayModeBar = F) 
 
 ```
 
@@ -188,12 +140,12 @@ ggplotly(pp) %>% plotly::config(displayModeBar = F)
 
 # Use this when using percent_covers_AMP2023.cvs and short names from CoralNet
 taxacover = AMP_long %>% filter(CATAMI != "SC", CATAMI != "algae") %>% 
-  group_by(site, strata, Image.ID) %>% 
+  group_by(locality, strata, Image.ID) %>% 
   summarise(sumcover = sum(cover, na.rm=T))
 
 pp = ggplot(taxacover, aes(x=factor(strata,level=c('LOWTIDE', 'MIDTIDE', 'HIGHTIDE')), sumcover, fill=strata))
 pp = pp + geom_boxplot() + ylab("% Cobertura de todas las especies por cuadrante") + xlab("")+
-  facet_grid(~site) + 
+  facet_grid(~locality) + 
   theme_bw(base_size = 10) + theme(legend.position = "none")
 ggplotly(pp)
 ```
@@ -284,8 +236,6 @@ Molluscs
 ```
 
 ### Coberturas de Macro-Algas
-
-<!-- <img src="images/ulva.JPG" width="400px"/> -->
 ```{r}
 # this creates a gauge with % cover values color coded by threshold levels
 library(echarts4r)
@@ -351,11 +301,11 @@ MAS
 ### Frecuencia de especies
 ```{r}
 taxafreq = AMP_long %>% filter(cover>0)%>%
-  group_by(site, strata, CATAMI) %>%  
+  group_by(locality, strata, CATAMI) %>%  
   summarise(sppfreq = n()) %>% arrange(sppfreq) %>% mutate(sppacum = cumsum(sppfreq))
 
 pp = ggplot(taxafreq, aes(CATAMI, sppfreq, fill=strata))
-pp = pp + geom_bar(stat="identity") + coord_flip() + facet_grid(~site) + 
+pp = pp + geom_bar(stat="identity") + coord_flip() + facet_grid(~locality) + 
   theme_bw(base_size = 10) + xlab("") + ylab("Número de foto-cuadrantes")
 
 ggplotly(pp)
@@ -382,11 +332,11 @@ plot_ly(labels=~CATAMI, values=~cover.mean, legendgroup=~CATAMI,textinfo = 'labe
 ```
 
 
-Column3{data-width=200}
+Column3{data-width=130}
 -------
 
 ### Fotoquadrantes por fecha y sitio
 ```{r}
-knitr::kable(as.data.frame(table(AMP$year,AMP$site,AMP$strata)),col.names = c("Año","Sitio","Estrato","n"))
+knitr::kable(as.data.frame(table(AMP$year,AMP$locality)),col.names = c("Año","Localidad","n"))
 ```
 
