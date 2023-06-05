@@ -326,6 +326,14 @@ plot_ly(labels=~CATAMI, values=~cover.mean, legendgroup=~CATAMI,textinfo = 'labe
          xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
          yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
 
+# create a pie chart for a single stratum without textinfo
+plot_ly(labels=~CATAMI, values=~cover.mean, legendgroup=~CATAMI) %>%
+  add_pie(data =sel_data.M, name = "Medio",title = 'Mid tide', domain = list(row = 0, column = 1))%>%
+  layout(showlegend = T,
+         grid=list(rows=1, columns=3),
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
 ```
 
 
