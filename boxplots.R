@@ -36,8 +36,8 @@ AMP <- AMP %>%
   select(country, region, everything())
 
 
+
 library(ggplot2)
-# Definir el orden deseado en la leyenda
 orden_fill <- c("Uruguay - Buenos Aires Shelf", "North Patagonian Gulfs", "Patagonian Shelf")
 
 # Crea una paleta de colores personalizada
@@ -47,7 +47,7 @@ mi_paleta <- c("brown", "gray", "orange", "purple", "yellow", "red", "pink", "gr
 orden_x <- c("LOWTIDE", "MIDTIDE", "HIGHTIDE")
 
 # Crea una función para simplificar la creación de gráficos
-crear_grafico <- function(data, variable, titulo) {
+crear_grafico.region <- function(data, variable, titulo) {
   ggplot(data, aes(x = factor(strata, levels = orden_x), y = .data[[variable]])) +
     geom_boxplot(aes(fill = factor(region, levels = orden_fill))) +
     labs(title = titulo, y = "Cover %", x = "Strata", fill = "Region") +
@@ -58,12 +58,12 @@ crear_grafico <- function(data, variable, titulo) {
 }
 
 # Crear los cuatro gráficos
-grafico_SC <- crear_grafico(AMP, "SC", "SC")
-grafico_MOB <- crear_grafico(AMP, "MOB", "MOB")
-grafico_MAF <- crear_grafico(AMP, "MAF", "MAF")
-grafico_MAS <- crear_grafico(AMP, "MAS", "MAS")
-grafico_MAA <- crear_grafico(AMP, "MAA", "MAA")
-grafico_MAEN <- crear_grafico(AMP, "MAEN", "MAEN")
+grafico_SC.region <- crear_grafico.region(AMP, "SC", "SC")
+grafico_MOB.region <- crear_grafico.region(AMP, "MOB", "MOB")
+grafico_MAF.region <- crear_grafico.region(AMP, "MAF", "MAF")
+grafico_MAS.region <- crear_grafico.region(AMP, "MAS", "MAS")
+grafico_MAA.region <- crear_grafico.region(AMP, "MAA", "MAA")
+grafico_MAEN.region <- crear_grafico.region(AMP, "MAEN", "MAEN")
 
 
 legend <- ggplot(AMP, aes(x = strata, y = `SC`)) +
@@ -85,15 +85,11 @@ legend2 <- ggplot(AMP, aes(x = strata, y = `SC`)) +
 library(cowplot)
 legend_plot <- get_legend(legend)#take legend
 legend_plot2 <- get_legend(legend2)
-plot_grid(grafico_SC, grafico_MOB, grafico_MAF, grafico_MAS,grafico_MAA,grafico_MAEN,legend_plot2 ,legend_plot, ncol = 3,nrows = 3, rel_heights = c(1,1,0.1))
-
-
+plot_grid(grafico_SC.region, grafico_MOB.region, grafico_MAF.region, grafico_MAS.region,grafico_MAA.region,grafico_MAEN.region,legend_plot2 ,legend_plot, ncol = 3,nrows = 3, rel_heights = c(1,1,0.1))
 
 
 
 #PLOT for locality 
-#
-
 library(ggplot2)
 # Definir el orden deseado en la leyenda
 orden_fill <- c("MAR DEL PLATA", "ISLOTE LOBOS","PUNTA BS AS","PUERTO MADRYN","PUNTA TOMBO","PIMCPA_NORTE", "PIMCPA_SUR", "PUERTO BUQUE", "MAKENKE", "MONTE LEON")
