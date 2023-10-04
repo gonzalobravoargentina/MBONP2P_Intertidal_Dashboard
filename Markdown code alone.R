@@ -49,9 +49,32 @@ AMP$locality <- ifelse(AMP$locality == "CABO DOS BAHIAS", "PIMCPA_NORTE", AMP$lo
 # Reemplazar "PIMCPA" por "PIMCPA_SUR" en la columna "locality" de AMP
 AMP$locality <- ifelse(AMP$locality == "PIMCPA", "PIMCPA_SUR", AMP$locality)
 
+#Asign REGION for localities 
+AMP$region <- ifelse(AMP$locality %in% c("MAR DEL PLATA", "ISLOTE LOBOS", "PUNTA BS AS"), "NORTH",
+                     ifelse(AMP$locality %in% c("PUERTO MADRYN"), "CENTER",
+                            ifelse(AMP$locality %in% c("PUNTA TOMBO", "PIMCPA_SUR", "PUERTO BUQUE", "MAKENKE", "MONTE LEON", "PIMCPA_NORTE"), "SOUTH", NA)))
+
+AMP <- AMP %>%
+  select(country, region, everything())
+
+
 
 #all seaweed
 AMP$algae <- as.numeric(paste(AMP$MAA +AMP$MAEC + AMP$MAEF+ AMP$MAEN+ AMP$MAF+ AMP$MAG+ AMP$MALA+ AMP$MALCB+ AMP$MAS))
+
+
+
+
+
+
+
+# Puedes imprimir el DataFrame para verificar los resultados
+print(AMP)
+
+
+
+
+
 
 
 #Create long type dataframe 
@@ -77,7 +100,7 @@ AMP <- AMP %>%
 photo_bydate = as.data.frame(table(AMP$year,AMP$site,AMP$locality,AMP$strata))
 colnames(photo_bydate)=c("Fecha","Sitio","Localidad","Estrato","n fotocuadrantes")  
 
-#SST
+#SST-----
 #getSST.r was used to get data 
 ## get sampling event dates
 samplingDates = unique(AMP$Date)
@@ -91,9 +114,8 @@ setwd("..")# original WD
 
 
 
-### Mapa Fotoquadrantes
+### Mapa Fotoquadrantes-------
 library(leaflet)
-
 
 # Crear el mapa
 map <- leaflet(AMP)%>%# add different provider tiles
@@ -132,8 +154,7 @@ map <- leaflet(AMP)%>%# add different provider tiles
 map  # Mostrar el mapa
 
 
-
-### Cobertura de organismos vivos por estrato
+### Cobertura de organismos vivos por estrato--------
 # Use this when using percent_covers.csv and full names from CoralNet
 # taxacover = AMP_long %>% filter(CATAMI != "Substrate..Consolidated..hard.") %>% 
 #   group_by(site, strata, Image.ID) %>% 
@@ -151,11 +172,7 @@ pp = pp + geom_boxplot() + ylab("% Cobertura de todas las especies por cuadrante
 ggplotly(pp)
 
 
-### Coberturas de Molluscos
-
-
-#<!-- <img src="images/AMP20053.JPG" width="400px"/> -->
-# this creates a gauge with % cover values color coded by threshold levels
+### Coberturas de Molluscos-------
 library(echarts4r)
 
 # Use this when using percent_covers.csv and full names from CoralNet
@@ -217,26 +234,9 @@ Molluscs <- e_charts() %>%
 
 Molluscs
 
-# # High tide
-# gauge(value$cover.mean[1], min = 0, max = 100, symbol = '%', 
-#       gaugeSectors(success = c(60, 100), warning = c(40, 59), danger = c(0, 39)),
-#       label = "Estrato alto"
-#       )
-# 
-# # Mid tide
-# gauge(value$cover.mean[3], min = 0, max = 100, symbol = '%', 
-#       gaugeSectors(success = c(60, 100), warning = c(40, 59), danger = c(0, 39)),
-#       label = "Estrato medio"
-#       )
-# 
-# # Low tide
-# gauge(value$cover.mean[2], min = 0, max = 100, symbol = '%', 
-#       gaugeSectors(success = c(60, 100), warning = c(40, 59), danger = c(0, 39)),
-#       label = "Estrato bajo"
-#       )
 
 
-### Coberturas de Macro-Algas
+### Coberturas de Macro-Algas------
 # this creates a gauge with % cover values color coded by threshold levels
 library(echarts4r)
 
@@ -298,7 +298,7 @@ MAS <- e_charts() %>%
 MAS
 
 
-### Frecuencia de especies
+### Frecuencia de especies-----
 
 taxafreq = AMP_long %>% filter(cover>0)%>%
   group_by(locality, strata, CATAMI) %>%  
@@ -312,7 +312,7 @@ ggplotly(pp)
 
 
 
-### Categorias más abundantes por estrato
+### Categorias más abundantes por estrato------
 
 library(plotly)
 library(dplyr)
@@ -359,14 +359,12 @@ for (localidad in localidades_unicas) {
 
 
 
-### nMDS
+### nMDS-----
 library(vegan)
 #nMDS calculations (no transformation + Bray)
-AMP <- AMP[,-(42)]
-# Reemplazar "CABO DOS BAHIAS" por "PIMCPA" en la columna "locality" de AMP
-AMP$locality <- ifelse(AMP$locality == "CABO DOS BAHIAS", "PIMCPA", AMP$locality)
+AMP <- AMP[,-(42)]# take out algae
 
-
+unique(AMP$locality)
 AMP_low <- subset(AMP,strata=="LOWTIDE")
 nMDS_low=metaMDS(AMP_low[,-(1:22)],k=2,trymax=3,try = 3,distance ="bray",autotransform = F)
 NMDS1.low <-nMDS_low$points[,1] 
