@@ -132,8 +132,6 @@ Column1 {.tabset .tabset-fade}
 
 ### Mapa
 ```{r map, message=FALSE, warning=FALSE}
-library(leaflet)
-
 
 # Crear el mapa
 map <- leaflet(AMP)%>%# add different provider tiles
@@ -168,6 +166,7 @@ map <- leaflet(AMP)%>%# add different provider tiles
 
 
 map  # Mostrar el mapa
+
 ```
 
 
