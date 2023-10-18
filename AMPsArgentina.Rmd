@@ -345,6 +345,8 @@ taxafreq = AMP_long %>% filter(cover>0)%>%
   group_by(locality, strata, CATAMI) %>%  
   summarise(sppfreq = n()) %>% arrange(sppfreq) %>% mutate(sppacum = cumsum(sppfreq))
 
+taxafreq = taxafreq %>% filter(CATAMI !="algae")
+
 pp = ggplot(taxafreq, aes(CATAMI, sppfreq, fill=strata))
 pp = pp + geom_bar(stat="identity") + coord_flip() + facet_grid(~locality) + 
   theme_bw(base_size = 10) + xlab("") + ylab("Número de foto-cuadrantes")+ theme(legend.position = "top",axis.text.x = element_text(angle = 90, hjust = 1),strip.text = element_text(size = 5))
