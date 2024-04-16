@@ -3,7 +3,6 @@ title: "AMPs ARGENTINA"
 output: 
   flexdashboard::flex_dashboard:
     theme: lumen
-    social: menu
     source: embed
     logo: logo.png
 ---
@@ -26,6 +25,7 @@ library(DT)
 library(shiny)
 library(xts)
 library(htmlwidgets)
+library(vegan)
 
 library(RColorBrewer)
 palette(brewer.pal(8, "Set2"))
@@ -55,6 +55,7 @@ metadata <- read_csv(file.path(Data,"metadata.csv"))#read metadata
 #Merge photoquadrat.metadata and photoquadrat.cover
 AMP<- merge(metadata,cover, by.x = "Name", by.y ="Image name", all.x = TRUE) 
 
+
 #Remove original data frames from enviroment
 rm(cover)
 rm(metadata)
@@ -63,8 +64,13 @@ rm(metadata)
 AMP$locality <- ifelse(AMP$locality == "CABO DOS BAHIAS", "PIMCPA_NORTE", AMP$locality)
 # Reemplazar "PIMCPA" por "PIMCPA_SUR" en la columna "locality" de AMP
 AMP$locality <- ifelse(AMP$locality == "PIMCPA", "PIMCPA_SUR", AMP$locality)
+AMP$locality <- ifelse(AMP$locality == "PUERTO BUQUE", "PUNTA BUQUE", AMP$locality)
+
 
 #all seaweed
+
+AMP_original <- AMP
+
 AMP$algae <- as.numeric(paste(AMP$MAA +AMP$MAEC + AMP$MAEF+ AMP$MAEN+ AMP$MAF+ AMP$MAG+ AMP$MALA+ AMP$MALCB+ AMP$MAS))
 
 
@@ -126,11 +132,12 @@ localidades_unicas <- unique(Coverdata_AMPs$locality)
 
 ```
 
+# Mapa
 
-Column1 {.tabset .tabset-fade}
--------
+Column {data-width=600}
+-------------------------------------
 
-### Mapa
+### Sitios de muestreo
 ```{r map, message=FALSE, warning=FALSE}
 
 # Crear el mapa
@@ -169,8 +176,26 @@ map  # Mostrar el mapa
 
 ```
 
+Column {data-width=400}
+-------------------------------------
 
-### Cobertura de organismos vivos por estrato
+### Fotoquadrantes
+```{r}
+# Calcular la tabla con todos los valores
+table_data <- as.data.frame(table(AMP$year, AMP$month, AMP$locality))
+
+# Filtrar la tabla para eliminar filas con n igual a cero
+table_filtered <- table_data[table_data$Freq != 0, ]
+
+# Renombrar las columnas
+colnames(table_filtered) <- c("Año", "Mes", "Localidad", "n")
+
+# Mostrar la tabla filtrada con knitr::kable
+knitr::kable(table_filtered,row.names = FALSE)
+
+```
+
+# Cobertura de organismos vivos
 ```{r taxacover}
 # Use this when using percent_covers.csv and full names from CoralNet
 # taxacover = AMP_long %>% filter(CATAMI != "Substrate..Consolidated..hard.") %>% 
@@ -338,7 +363,7 @@ MAS <- e_charts() %>%
 MAS
 ```
 
-### Frecuencia de Grupos CATAMI
+# Frecuencia por categorias
 ```{r}
 taxafreq = AMP_long %>% filter(cover>0)%>%
   group_by(locality, strata, CATAMI) %>%  
@@ -387,6 +412,11 @@ for (localidad in localidades_unicas) {
 
 
 ```
+
+# Cobertura por categorias
+
+Column1 {.tabset .tabset-fade}
+-------
 
 ### MAR DEL PLATA
 ```{r}
@@ -438,22 +468,50 @@ plot_list[[2]]
 plot_list[[4]]
 ```
 
+# nMDS
 
-Column3{data-width=130}
+Column1 {.tabset .tabset-fade}
 -------
 
-### Fotoquadrantes por fecha y sitio
-```{r}
-# Calcular la tabla con todos los valores
-table_data <- as.data.frame(table(AMP$year, AMP$month, AMP$locality))
+```{r message=FALSE, warning=FALSE, include=FALSE, cache=TRUE}
+nMDS=metaMDS(AMP_original[, -(1:21)],k=2,trymax=1,try = 0,distance ="bray",autotransform = F)
+NMDS1 <-nMDS$points[,1] 
+NMDS2 <- nMDS$points[,2]
+MDS.plot<-cbind(AMP_original[, -(1:21)], NMDS1, NMDS2,AMP_original$locality,AMP_original$strata) 
 
-# Filtrar la tabla para eliminar filas con n igual a cero
-table_filtered <- table_data[table_data$Freq != 0, ]
+colnames(MDS.plot)[22] <- "site"
+colnames(MDS.plot)[23] <- "strata"
 
-# Renombrar las columnas
-colnames(table_filtered) <- c("Año", "Mes", "Localidad", "n")
+# Calcular los puntos promedio por sitio
+average_points<- MDS.plot %>%
+  group_by(site,strata) %>%
+  summarize(NMDS1_avg = mean(NMDS1), NMDS2_avg = mean(NMDS2))
 
-# Mostrar la tabla filtrada con knitr::kable
-knitr::kable(table_filtered,row.names = FALSE)
+# Crear el gráfico MDS
+average_points_low <- subset(average_points,strata=="LOWTIDE")
+low <- ggplot(average_points_low, aes(NMDS1_avg, NMDS2_avg)) +
+  geom_point(aes(color = site), size = 3) +  geom_text(aes(label = site, x = NMDS1_avg, y = NMDS2_avg+0.03), size = 3) + theme_bw() + theme(legend.position = "none", axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank(), panel.background = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), plot.background = element_blank(), plot.title = element_text(size = 12)) + ggtitle("Marea Baja") 
 
+average_points_mid <- subset(average_points,strata=="MIDTIDE") 
+mid <- ggplot(average_points_mid, aes(NMDS1_avg, NMDS2_avg)) +
+  geom_point(aes(color = site), size = 3) +  geom_text(aes(label = site, x = NMDS1_avg, y = NMDS2_avg+0.03), size = 3) + theme_bw() + theme(legend.position = "none", axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank(), panel.background = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), plot.background = element_blank(), plot.title = element_text(size = 12)) + ggtitle("Marea media") 
+
+average_points_high <- subset(average_points,strata=="HIGHTIDE") 
+high <- ggplot(average_points_high, aes(NMDS1_avg, NMDS2_avg)) +
+  geom_point(aes(color = site), size = 3) +  geom_text(aes(label = site, x = NMDS1_avg, y = NMDS2_avg+0.03), size = 3) + theme_bw() + theme(legend.position = "none", axis.text.x = element_blank(), axis.text.y = element_blank(), axis.ticks = element_blank(), axis.title.x = element_blank(), axis.title.y = element_blank(), panel.background = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), plot.background = element_blank(), plot.title = element_text(size = 12)) + ggtitle("Marea Alta") 
+```
+
+### Marea Baja
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+low
+```
+
+### Marea Media
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+mid
+```
+
+### Marea ALta
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+high
 ```

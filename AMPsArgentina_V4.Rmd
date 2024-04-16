@@ -1,0 +1,577 @@
+---
+title: "AMPs ARGENTINA"
+output: 
+  flexdashboard::flex_dashboard:
+    theme: lumen
+    source: embed
+    logo: logo.png
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(ggplot2)
+library(plotly)
+library(spocc)
+library(readr)
+library(reshape2)
+library(leaflet)
+library(xts)
+library(dygraphs)
+library(plotly)
+library(lubridate)
+library(dplyr)
+library(htmltools)
+library(DT)
+library(shiny)
+library(xts)
+library(htmlwidgets)
+library(vegan)
+
+library(RColorBrewer)
+palette(brewer.pal(8, "Set2"))
+
+
+```
+
+```{r dataread, message=FALSE, warning=FALSE, include=FALSE}
+#READ both files metadata and percent cover 
+
+# Suppress summaries info
+options(dplyr.summarise.inform = FALSE)
+
+#DATA
+##Data folder
+Data <- "DATA"
+
+#We download from CORALNET two files, 1-species cover information and 2- metadata of photoquadrats:
+# 1- metadata.csv
+# 2- percent_cover.csv
+
+library(readr)
+cover <- read_csv(file.path(Data, "percent_covers.csv"))#read cover data
+metadata <- read_csv(file.path(Data,"metadata.csv"))#read metadata
+AMP_list <- read_csv(file.path(Data,"AMP_list.csv"))
+
+#Merge photoquadrat.metadata and photoquadrat.cover
+AMP<- merge(metadata,cover, by.x = "Name", by.y ="Image name", all.x = TRUE) 
+
+
+#Remove original data frames from enviroment
+rm(cover)
+#rm(metadata)
+
+# Reemplazar "CABO DOS BAHIAS" por "PIMCPA_NORTE" en la columna "locality" de AMP
+AMP$locality <- ifelse(AMP$locality == "CABO DOS BAHIAS", "PIMCPA_NORTE", AMP$locality)
+# Reemplazar "PIMCPA" por "PIMCPA_SUR" en la columna "locality" de AMP
+AMP$locality <- ifelse(AMP$locality == "PIMCPA", "PIMCPA_SUR", AMP$locality)
+
+
+
+
+#all seaweed
+AMP_original <- AMP
+
+AMP$algae <- as.numeric(paste(AMP$MAA +AMP$MAEC + AMP$MAEF+ AMP$MAEN+ AMP$MAF+ AMP$MAG+ AMP$MALA+ AMP$MALCB+ AMP$MAS))
+
+
+#Create long type dataframe 
+library(reshape)
+AMP_long = melt(AMP, id.vars = 1:22, measure.vars = 23:ncol(AMP), variable_name = "CATAMI", value_name ="cover", na.rm = T)
+#rename columns because the ontop command is not working 
+colnames(AMP_long)[23] <- "CATAMI"
+colnames(AMP_long)[24] <- "cover"
+
+#Calculate mean, SD, SE for cover data by factors 
+library(doBy)
+Coverdata <- summaryBy(cover ~ CATAMI + strata,data=AMP_long, FUN = function(x) { c(mean = mean(x),SD=sd(x),SE = sqrt(var(x)/length(x)))})
+
+library(doBy)
+Coverdata_AMPs <- summaryBy(cover ~ CATAMI + strata +locality ,data=AMP_long, FUN = function(x) { c(mean = mean(x),SD=sd(x),SE = sqrt(var(x)/length(x)))})
+
+library(dplyr)
+library(lubridate)
+AMP <- AMP %>%
+  mutate(year = lubridate::year(Date))  %>%
+  mutate(month = lubridate::month(Date))  %>%
+  mutate(estacion = ifelse(month %in% c(12, 1, 2, 3, 4, 5), "Cálida", "Fría"))%>%
+  select(Name,Date, year,month,estacion,everything())
+
+photo_bydate = as.data.frame(table(AMP$year,AMP$site,AMP$locality,AMP$strata))
+colnames(photo_bydate)=c("Fecha","Sitio","Localidad","Estrato","n fotocuadrantes")  
+
+
+#SST
+#getSST.r was used to get data 
+## get sampling event dates
+samplingDates = unique(AMP$Date)
+
+## read SST values
+library(readr)
+setwd(paste0(getwd(),"/DATA"))#set new WD to folder DATA
+SST = read_csv("ISLAPINGUINO_SST.csv")
+SST.clim = read_csv("ISLAPINGUINO_Climatology.csv")
+setwd("..")# original WD
+
+
+library(plotly)
+library(dplyr)
+library(cols4all)
+# Obtener las categorías únicas en la columna 'CATAMI'
+categorias_unicas <- unique(Coverdata_AMPs$CATAMI)
+num_categorias <- length(categorias_unicas)
+
+# Obtener una paleta de colores de cols4all con 18 colores
+paleta_cols4all <- c4a("poly.alphabet", 18)
+
+# Crear un vector de colores asignados a las categorías
+colores_categoria <- paleta_cols4all[match(Coverdata_AMPs$CATAMI, categorias_unicas)]
+
+# Asignar los colores al dataframe en una nueva columna llamada 'Color'
+Coverdata_AMPs$Color <- colores_categoria
+
+# Obtener las localidades únicas en la columna 'locality'
+localidades_unicas <- unique(Coverdata_AMPs$locality)
+
+Coverdata_AMPs$CATAMI
+
+
+# Definir el dataframe con los nombres actualizados
+nombres_actualizados <- recode(Coverdata_AMPs$CATAMI,
+                                "CNCA" = "Anémonas coloniales",
+                                "CNTR" = "Anémonas",
+                                "CRB" = "Cirripedios",
+                                "MOB" = "Bivalvos",
+                                "MOG" = "Gasterópodos",
+                                "SP" = "Esponja",
+                                "WPOT" = "Tubo poliqueto",
+                                "SC" = "Suelo Desnudo",
+                                "Unc" = "Sin definir",
+                                "MAA" = "Algas calcáreas",
+                                "MAEC" = "Algas ramas gruesas",
+                                "MAEF" = "Algas ramas finas",
+                                "MAEN" = "Algas incrustantes",
+                                "MAF" = "Algas filamentosas",
+                                "MAG" = "Algas globosas",
+                                "MALA" = "Algas laminares",
+                                "MALCB" = "Algas formadoras de bosque",
+                                "MAS" = "Algas hojas laminares finas")
+
+# Reemplazar la columna original con los nombres actualizados
+Coverdata_AMPs$CATAMI <- nombres_actualizados
+
+
+```
+
+
+# Mapa
+
+Column {data-width=600}
+-------------------------------------
+
+### Sitios de muestreo
+```{r map, message=FALSE, warning=FALSE}
+
+# Combinar las columnas year y estacion en una columna llamada tiempo
+AMP$tiempo <- paste(AMP$year, AMP$estacion, sep = "_")
+
+# Crear el mapa
+map <- leaflet(options = leafletOptions(zoomControl = TRUE,
+                                        zoomSnap = 0.25,
+                                        zoomDelta = 1)) %>%
+  addProviderTiles('Esri.WorldImagery',
+                   options = providerTileOptions(maxNativeZoom=19,maxZoom=100),
+                   group = "Satelite"
+  ) %>%
+  addProviderTiles(
+    "OpenStreetMap",
+    group = "Mapa para zoom"
+  ) %>%
+  addLayersControl(
+    baseGroups = c("Satelite", "Mapa para zoom"),
+    position = "topleft"
+  )
+
+# Añadir puntos para cada tiempo como capas separadas
+for (tiempo in unique(AMP$tiempo)) {
+  map <- map %>%
+    addCircleMarkers(
+      data = AMP[AMP$tiempo == tiempo, ], 
+      ~Longitude, 
+      ~Latitude,
+      weight = 0.5,
+      radius = 4,
+      fillOpacity = 0.5,
+      stroke = TRUE,
+      popup = ~paste("Strata:", strata, "<br>", "Name:", Name),
+      color = ~factor(strata),
+      fillColor = ~factor(strata) %>% 
+        {ifelse(. == "HIGHTIDE", "red", ifelse(. == "MIDTIDE", "blue", "green"))},
+      group = as.character(tiempo)  # Asignar cada punto a su tiempo correspondiente como un grupo separado
+    )
+}
+
+# Agregar control de capas para seleccionar el tiempo
+map <- map %>%
+  addLayersControl(
+    overlayGroups = unique(AMP$tiempo),  # Lista de tiempos para seleccionar
+    options = layersControlOptions(collapsed = FALSE)  # Panel desplegado por defecto
+  ) %>%
+  addControl(html = "<div id='legend'>Estratos: <br><i style='background: red'></i> Alta <br><i style='background: blue'></i> Media <br><i style='background: green'></i> Baja </div>",
+             position = "bottomright")
+
+map  # Mostrar el mapa
+
+
+
+```
+
+Column {data-width=400}
+-------------------------------------
+
+### Fotoquadrantes
+```{r}
+library(dplyr)
+library(tidyr)
+
+# Calcular la tabla con todos los valores
+table_data <- as.data.frame(table(AMP$year, AMP$month, AMP$locality))
+
+# Filtrar la tabla para eliminar filas con n igual a cero
+table_filtered <- table_data[table_data$Freq != 0, ]
+
+# Renombrar las columnas
+colnames(table_filtered) <- c("Año", "Mes", "Localidad", "n")
+
+# Agregar una columna que clasifique los meses como "Cálida" o "Fría"
+table_filtered <- table_filtered %>%
+  mutate(Estacion = ifelse(Mes %in% c(12, 1, 2, 3, 4, 5), "Cálida", "Fría"))
+
+# Calcular la suma total de la columna n agrupada por Año, Estacion y Localidad
+total_n <- table_filtered %>%
+  group_by(Año, Estacion, Localidad) %>%
+  summarize(Total_n = sum(n)) %>%
+  ungroup() %>%
+  mutate(Total_n = ifelse(is.na(Total_n), 0, Total_n))  # Reemplazar NA con 0 en caso de que no haya datos para una combinación
+
+# Calcular la suma total de la columna n agrupada por Año y Estacion
+total_estacion <- total_n %>%
+  group_by(Año, Estacion) %>%
+  summarize(Total_n = sum(Total_n)) %>%
+  ungroup() %>%
+  mutate(Localidad = "Total")  # Agregar "Total" como localidad para estas filas
+
+# Agregar una fila al final con la suma total de la columna n por Año
+total_por_año <- total_n %>%
+  group_by(Año) %>%
+  summarize(Total_n = sum(Total_n)) %>%
+  mutate(Estacion = "Total", Localidad = "Total")
+
+# Combinar la tabla total_n con la fila de suma total de estación
+tabla_final <- bind_rows(total_n, total_estacion, total_por_año)
+
+# Mostrar la tabla con el total de la columna n agrupada por Año, Estacion y Localidad
+knitr::kable(tabla_final, row.names = FALSE)
+
+
+
+```
+
+
+```{r taxacover, eval=FALSE, include=FALSE}
+# Cobertura de organismos vivos
+# Use this when using percent_covers.csv and full names from CoralNet
+# taxacover = AMP_long %>% filter(CATAMI != "Substrate..Consolidated..hard.") %>% 
+#   group_by(site, strata, Image.ID) %>% 
+#   summarise(sumcover = sum(cover, na.rm=T))
+
+# Use this when using percent_covers_AMP2023.cvs and short names from CoralNet
+taxacover = AMP_long %>% filter(CATAMI != "SC", CATAMI !="algae") %>% 
+  group_by(locality, strata, Name) %>% 
+  summarise(sumcover = sum(cover, na.rm=T))
+
+pp = ggplot(taxacover, aes(x=factor(strata,level=c('LOWTIDE', 'MIDTIDE', 'HIGHTIDE')), sumcover, fill=strata))
+pp = pp + geom_boxplot() + ylab("% Cobertura de todas las especies por cuadrante") + xlab("")+
+  facet_grid(~locality) + 
+  theme_bw(base_size = 10) + theme(legend.position = "none",axis.text.x = element_text(angle = 90, hjust = 1),strip.text = element_text(size = 5))
+ggplotly(pp)
+```
+
+
+```{r eval=FALSE, include=FALSE}
+### Coberturas de Molluscos
+#<!-- <img src="images/AMP20053.JPG" width="400px"/> -->
+# this creates a gauge with % cover values color coded by threshold levels
+library(echarts4r)
+
+# Use this when using percent_covers.csv and full names from CoralNet
+# value <- Coverdata[Coverdata$CATAMI == "Molluscs..Bivalves", ]
+
+# Use this when using percent_covers_AMP2023.cvs and short names from CoralNet
+value <- Coverdata[Coverdata$CATAMI == "MOB", ]
+
+Molluscs <- e_charts() %>% 
+  e_gauge(round(value$cover.mean[1], 0), 
+          "ALTO", 
+          center = c("20%", "20%"), 
+          radius = "35%",
+          color = "black",
+          min=0, 
+          max=100,
+          splitNumber = 5,
+          axisLine = list(
+            lineStyle = list(
+              color=list(
+                c(1, "green"),
+                c(1, "green"),
+                c(1, "green")
+              )
+            ))) %>% 
+    e_gauge(round(value$cover.mean[3], 0), 
+          "MEDIO", 
+          center = c("50%", "20%"), 
+          radius = "35%",
+          color = "black",
+          min=0, 
+          max=100,
+          splitNumber = 5,
+          axisLine = list(
+            lineStyle = list(
+              color=list(
+                c(0.20, "red"),
+                c(0.4, "yellow"),
+                c(1, "green")
+              )
+            ))) %>% 
+      e_gauge(round(value$cover.mean[2], 0), 
+          "BAJO", 
+          center = c("80%", "20%"), 
+          radius = "35%",
+          color = "black",
+          min=0, 
+          max=100,
+          splitNumber = 5,
+          axisLine = list(
+            lineStyle = list(
+              color=list(
+                c(1, "green"),
+                c(1, "green"),
+                c(1, "green")
+              )
+            ))) %>% 
+  e_title("Moluscos (%)")
+
+Molluscs
+
+# # High tide
+# gauge(value$cover.mean[1], min = 0, max = 100, symbol = '%', 
+#       gaugeSectors(success = c(60, 100), warning = c(40, 59), danger = c(0, 39)),
+#       label = "Estrato alto"
+#       )
+# 
+# # Mid tide
+# gauge(value$cover.mean[3], min = 0, max = 100, symbol = '%', 
+#       gaugeSectors(success = c(60, 100), warning = c(40, 59), danger = c(0, 39)),
+#       label = "Estrato medio"
+#       )
+# 
+# # Low tide
+# gauge(value$cover.mean[2], min = 0, max = 100, symbol = '%', 
+#       gaugeSectors(success = c(60, 100), warning = c(40, 59), danger = c(0, 39)),
+#       label = "Estrato bajo"
+#       )
+```
+
+
+```{r eval=FALSE, include=FALSE}
+### Coberturas de Macro-Algas
+# this creates a gauge with % cover values color coded by threshold levels
+library(echarts4r)
+
+# Use  short names from CoralNet
+value <- Coverdata[Coverdata$CATAMI == "algae", ]
+
+
+MAS <- e_charts() %>% 
+  e_gauge(round(value$cover.mean[1], 0), 
+          "ALTO", 
+          center = c("20%", "20%"), 
+          radius = "35%",
+          color = "black",
+          min=0, 
+          max=100,
+          splitNumber = 5,
+          axisLine = list(
+            lineStyle = list(
+              color=list(
+                c(1, "green"),
+                c(1, "green"),
+                c(1, "green")
+              )
+            ))) %>% 
+    e_gauge(round(value$cover.mean[3], 0), 
+          "MEDIO", 
+          center = c("50%", "20%"), 
+          radius = "35%",
+          color = "black",
+          min=0, 
+          max=100,
+          splitNumber = 5,
+          axisLine = list(
+            lineStyle = list(
+              color=list(
+                c(1, "green"),
+                c(1, "green"),
+                c(1, "green")
+              )
+            ))) %>% 
+      e_gauge(round(value$cover.mean[2], 0), 
+          "BAJO", 
+          center = c("80%", "20%"), 
+          radius = "35%",
+          color = "black",
+          min=0, 
+          max=100,
+          splitNumber = 5,
+          axisLine = list(
+            lineStyle = list(
+              color=list(
+                c(0.10, "red"),
+                c(.20, "yellow"),
+                c(1, "green")
+              )
+            ))) %>% 
+  e_title("Macro-algas (%)")
+
+MAS
+```
+
+# Riqueza de categorias CATAMI
+```{r}
+#Factors
+locality <- AMP_original$locality
+site <- AMP_original$site
+strata <- AMP_original$strata
+state<- AMP_original$state
+richness<-AMP_original[,-(1:22)]
+sppnumber <- specnumber(richness)
+
+
+#Data Frame with spp number per photoquadrat
+spp <- data.frame(state,locality,site,strata,sppnumber)
+
+
+# Definir el orden deseado de la columna locality
+orden_sitios <- rev(c("MAR DEL PLATA", "ISLOTE LOBOS", "PUNTA BS AS",
+                  "PUNTA LOMA", "PUNTA TOMBO", "PIMCPA_NORTE",
+                  "PIMCPA_SUR", "PUNTA BUQUE", "MAKENKE",
+                  "MONTE LEON"))
+
+# Convertir la columna locality a un factor con el orden deseado
+spp$locality <- factor(spp$locality, levels = orden_sitios)
+
+# Ordenar el dataframe spp por la columna locality
+spp <- spp[order(spp$locality), ]
+
+
+# Crear un boxplot
+spp$strata <- factor(spp$strata, levels = c("HIGHTIDE", "MIDTIDE", "LOWTIDE"))
+
+# Graficar con facet_grid ordenado
+catamirichness <- ggplot(spp, aes(x = locality, y = sppnumber)) +
+  geom_boxplot() + theme_bw() +
+  labs(x = "Sitio", y = "Cantidad de categorias CATAMI") + 
+  theme(axis.text.x = element_text(size = 12)) + 
+  coord_flip() + 
+  facet_grid(~strata)
+ggplotly(catamirichness)
+
+```
+
+
+```{r include=FALSE}
+
+library(patchwork)
+# Crear una lista para almacenar los gráficos generados en el bucle
+plot_list <- list()
+
+# Iniciar un loop para cada localidad
+for (localidad in localidades_unicas) {
+  # Filtrar los datos para la localidad actual
+  Coverdata_AMPs_site <- filter(Coverdata_AMPs, locality == localidad)
+  
+  # Crear un gráfico de torta para cada estrato
+  sel_data.L <- filter(Coverdata_AMPs_site, strata == "LOWTIDE", cover.mean > 0, CATAMI != "algae")
+  sel_data.M <- filter(Coverdata_AMPs_site, strata == "MIDTIDE", cover.mean > 0, CATAMI != "algae")
+  sel_data.H <- filter(Coverdata_AMPs_site, strata == "HIGHTIDE", cover.mean > 0, CATAMI != "algae")
+  
+  p <- plot_ly(labels = ~CATAMI, values = ~cover.mean, legendgroup = ~CATAMI, textinfo = 'label+percent',
+               marker = list(colors = ~Color)) %>%  # Aquí asignamos los colores desde la columna 'Color'
+    add_pie(data = sel_data.L, name = "Bajo", title = 'Estrato Bajo', domain = list(row = 0, column = 0)) %>%
+    add_pie(data = sel_data.M, name = "Medio", title = 'Estrato Medio', domain = list(row = 0, column = 1)) %>%
+    add_pie(data = sel_data.H, name = "Alto", title = 'Estrato Alto', domain = list(row = 0, column = 2)) %>%
+    layout(title = localidad, showlegend = T,
+           grid = list(rows = 1, columns = 3),
+           xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
+           yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+  
+  # Agregar el gráfico a la lista
+  plot_list[[length(plot_list) + 1]] <- p
+}
+
+
+```
+
+# Cobertura por categorias
+
+Column1 {.tabset .tabset-fade}
+-------
+
+### MAR DEL PLATA
+```{r}
+plot_list[[3]]
+```
+
+### ISLOTE LOBOS
+```{r}
+plot_list[[1]]
+```
+
+### PUNTA BS AS
+```{r}
+plot_list[[6]]
+```
+
+### PUNTA LOMA
+```{r}
+plot_list[[8]]
+```
+
+### PUNTA TOMBO
+```{r}
+plot_list[[9]]
+```
+
+### PIMCPA_NORTE
+```{r}
+plot_list[[4]]
+```
+
+### PIMCPA_SUR
+```{r}
+plot_list[[5]]
+```
+
+### PUNTA BUQUE
+```{r}
+plot_list[[7]]
+```
+
+### MAKENKE
+```{r}
+plot_list[[2]]
+```
+
+### MONTE LEON
+```{r}
+plot_list[[10]]
+```
