@@ -1,4 +1,4 @@
-# MBON_CoralNet_Dashboard
+# MBON Pole to Pole Dashboard for Intertidal data
 
 ## Introduction
 This repository contains R markdown scripts for creating interactive dashboards using data from CORALNET. CORALNET is a platform for analyzing photocuadrats to monitor biodiversity.
