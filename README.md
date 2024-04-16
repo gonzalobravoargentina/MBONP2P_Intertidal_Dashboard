@@ -12,5 +12,5 @@ You can use the R markdown scripts provided here to create interactive dashboard
 ## Feedback
 If you have any feedback or suggestions for improvement, please feel free to open an issue or submit a pull request. Your contributions are highly appreciated!
 
-[![MBON](https://marinebon.org/wp-content/uploads/2018/03/MBON-logo-P2P-500px.png)](https://marinebon.org/mbon-pole-to-pole-of-the-americas/)
+![MBON Logo](https://marinebon.org/wp-content/uploads/2022/08/MBON_logo_horizontal_60.png)
 
