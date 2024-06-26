@@ -13,6 +13,8 @@ dfSummary <- df %>% group_by(Label) %>%
   arrange(-nPoints) %>% 
   relocate(Label, nPoints, Percent, site)
 
+write.csv(dfSummary,"annotations_CATAMI.csv")
+
 library(formattable)
 formattable(dfSummary, list(Percent=color_bar("steelblue")))
 

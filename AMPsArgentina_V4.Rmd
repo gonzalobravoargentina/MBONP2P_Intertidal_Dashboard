@@ -67,7 +67,6 @@ AMP$locality <- ifelse(AMP$locality == "PIMCPA", "PIMCPA_SUR", AMP$locality)
 
 
 
-
 #all seaweed
 AMP_original <- AMP
 
